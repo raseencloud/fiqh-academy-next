@@ -119,17 +119,18 @@
         }
         .forgot-link:hover { text-decoration: underline; }
     </style>
+<base target="_blank">
 </head>
 <body>
     <div class="particles" id="particles"></div>
-    
+
     <div class="login-card">
         <div class="logo-circle">
             <i class="fas fa-shield-halved"></i>
         </div>
         <h3 class="text-center mb-1">نظام المراجعة الداخلية</h3>
         <p class="text-white-50 text-center mb-4">تسجيل الدخول إلى لوحة التحكم</p>
-        
+
         <div id="errorAlert" class="alert alert-danger d-none mb-3" role="alert">
             <i class="fas fa-circle-exclamation me-2"></i>
             <span id="errorText">اسم المستخدم أو كلمة المرور غير صحيحة</span>
@@ -143,7 +144,7 @@
                     <input type="text" class="form-control rounded-start-0" id="username" placeholder="أدخل اسم المستخدم" required>
                 </div>
             </div>
-            
+
             <div class="mb-4">
                 <label class="form-label">كلمة المرور</label>
                 <div class="input-group">
@@ -154,7 +155,7 @@
                     </span>
                 </div>
             </div>
-            
+
             <button type="submit" class="btn btn-login">
                 <i class="fas fa-arrow-right-to-bracket me-2"></i> تسجيل الدخول
             </button>
@@ -191,48 +192,57 @@
             }
         });
 
-        // Login handler
+        // ============================================
+        // CORRECTED LOGIN HANDLER
+        // Saves session in format that dashboard.html expects
+        // ============================================
         document.getElementById('loginForm').addEventListener('submit', function(e) {
             e.preventDefault();
-            const user = document.getElementById('username').value.trim();
-            const pass = document.getElementById('password').value.trim();
-            const alert = document.getElementById('errorAlert');
+
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value.trim();
+            const alertBox = document.getElementById('errorAlert');
             const btn = document.querySelector('.btn-login');
-            
+
             btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> جاري التحقق...';
             btn.disabled = true;
 
             setTimeout(() => {
-                if(user === 'admin' && pass === 'admin123') {
-                    localStorage.setItem('isLoggedIn', 'true');
-                    localStorage.setItem('currentUser', user);
+                // Validate credentials
+                let userData = null;
+
+                if(username === 'admin' && password === 'admin123') {
+                    userData = { username: 'admin', name: 'مدير النظام', role: 'admin' };
+                } else if(username === 'ahmed' && password === 'ahmed123') {
+                    userData = { username: 'ahmed', name: 'أحمد الشمري', role: 'executive' };
+                } else if(username === 'guest' && password === 'guest') {
+                    userData = { username: 'guest', name: 'زائر', role: 'guest' };
+                }
+
+                if(userData) {
+                    // Create session object in the EXACT format dashboard.html expects
+                    const session = {
+                        username: userData.username,
+                        name: userData.name,
+                        role: userData.role,
+                        timestamp: new Date().toISOString(),
+                        loginTime: new Date().toISOString()
+                    };
+
+                    // Save with the EXACT key that dashboard.html looks for
+                    localStorage.setItem('auditSession', JSON.stringify(session));
+
+                    console.log('Session saved:', session);
+
+                    // Redirect to dashboard
                     window.location.href = 'dashboard.html';
                 } else {
-                    alert.classList.remove('d-none');
+                    alertBox.classList.remove('d-none');
                     btn.innerHTML = '<i class="fas fa-arrow-right-to-bracket me-2"></i> تسجيل الدخول';
                     btn.disabled = false;
                 }
             }, 1000);
         });
     </script>
-  <script src="login-fix.js"></script>
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-  const loginForm = document.getElementById('loginForm');
-  if (loginForm) {
-    loginForm.addEventListener('submit', async function(e) {
-      e.preventDefault();
-      const username = document.getElementById('username').value.trim();
-      const password = document.getElementById('password').value;
-      
-      const result = await loginHandler.handleLogin(username, password);
-      
-      if (!result.success) {
-        alert(result.error);
-      }
-    });
-  }
-});
-</script>
 </body>
 </html>
