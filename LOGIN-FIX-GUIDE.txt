@@ -1,0 +1,231 @@
+
+╔═══════════════════════════════════════════════════════════════╗
+║          حل مشكلة تسجيل الدخول المتكرر (Login Loop)           ║
+╚═══════════════════════════════════════════════════════════════╝
+
+📋 المشكلة: تسجيل الدخول يعمل لثانية ثم يعيد التوجيه مرة أخرى
+
+═══════════════════════════════════════════════════════════════
+🔍 الخطوة 1: التحقق من Console (F12 → Console)
+═══════════════════════════════════════════════════════════════
+
+1. افتح المتصفح واضغط F12
+2. اذهب إلى Console
+3. ابحث عن أي خطوط حمراء (Errors)
+4. انسخ الخطأ وارسله لي إذا وجدت
+
+═══════════════════════════════════════════════════════════════
+🔧 الخطوة 2: التحقق من LocalStorage (السبب الأكثر شيوعاً)
+═══════════════════════════════════════════════════════════════
+
+1. افتح صفحة login.html
+2. اضغط F12 → Application → Local Storage
+3. تحقق من وجود المفتاح التالي:
+
+   ✅ الصحيح: auditSession
+   ❌ الخاطئ: userSession, session, auth, etc.
+
+4. إذا كان المفتاح مختلفاً، يجب توحيده في جميع الملفات
+
+═══════════════════════════════════════════════════════════════
+🔧 الخطوة 3: الحل السريع (نسخ/لصق)
+═══════════════════════════════════════════════════════════════
+
+أضف هذا الكود في بداية ملف login.html الخاص بك:
+
+```javascript
+// ============================================
+// AUTH CONFIG - يجب أن يكون نفس المفتاح في جميع الملفات
+// ============================================
+const AUTH_CONFIG = {
+  STORAGE_KEY: 'auditSession',  // ⚠️ نفس المفتاح في dashboard
+  LOGIN_PAGE: 'index.html',
+  DASHBOARD_PAGE: 'dashboard.html'
+};
+
+// ============================================
+// LOGIN FUNCTION - المصححة
+// ============================================
+function handleLogin(username, password) {
+  // 1. التحقق من المدخلات
+  if (!username || !password) {
+    alert('يرجى إدخال اسم المستخدم وكلمة المرور');
+    return false;
+  }
+
+  // 2. التحقق من البيانات (مثال - استبدل بـ API حقيقي)
+  const users = [
+    { username: 'admin', password: 'admin123', name: 'مدير النظام', role: 'admin' },
+    { username: 'ahmed', password: 'ahmed123', name: 'أحمد الشمري', role: 'executive' },
+    { username: 'guest', password: 'guest', name: 'زائر', role: 'guest' }
+  ];
+
+  const user = users.find(u => u.username === username && u.password === password);
+
+  if (!user) {
+    alert('اسم المستخدم أو كلمة المرور غير صحيحة');
+    return false;
+  }
+
+  // 3. إنشاء الجلسة بالبنية الصحيحة
+  const session = {
+    username: user.username,
+    name: user.name,
+    role: user.role,
+    timestamp: new Date().toISOString(),
+    sessionId: 'sess_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9)
+  };
+
+  // 4. حفظ الجلسة
+  localStorage.setItem(AUTH_CONFIG.STORAGE_KEY, JSON.stringify(session));
+
+  console.log('Session saved:', session);
+
+  // 5. التوجيه - استخدام replace لمنع الرجوع
+  window.location.replace(AUTH_CONFIG.DASHBOARD_PAGE);
+
+  return true;
+}
+
+// ============================================
+// EVENT LISTENER
+// ============================================
+document.addEventListener('DOMContentLoaded', function() {
+  const loginForm = document.getElementById('loginForm');
+
+  if (loginForm) {
+    loginForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value;
+
+      handleLogin(username, password);
+    });
+  }
+});
+```
+
+═══════════════════════════════════════════════════════════════
+🔧 الخطوة 4: التحقق من Dashboard
+═══════════════════════════════════════════════════════════════
+
+تأكد أن ملف dashboard.html يستخدم نفس المفتاح:
+
+```javascript
+// في بداية dashboard.html
+const STORAGE_KEY = 'auditSession';  // نفس المفتاح!
+
+function checkAuth() {
+  const sessionData = localStorage.getItem(STORAGE_KEY);
+
+  if (!sessionData) {
+    console.log('No session found, redirecting to login...');
+    window.location.replace('index.html');
+    return;
+  }
+
+  try {
+    const session = JSON.parse(sessionData);
+
+    // التحقق من البنية
+    if (!session.username || !session.timestamp) {
+      console.log('Invalid session structure');
+      localStorage.removeItem(STORAGE_KEY);
+      window.location.replace('index.html');
+      return;
+    }
+
+    // التحقق من الصلاحية (24 ساعة)
+    const sessionTime = new Date(session.timestamp).getTime();
+    const now = Date.now();
+    const maxAge = 24 * 60 * 60 * 1000; // 24 hours
+
+    if (now - sessionTime > maxAge) {
+      console.log('Session expired');
+      localStorage.removeItem(STORAGE_KEY);
+      window.location.replace('index.html');
+      return;
+    }
+
+    console.log('Session valid:', session);
+
+  } catch (error) {
+    console.error('Error parsing session:', error);
+    localStorage.removeItem(STORAGE_KEY);
+    window.location.replace('index.html');
+  }
+}
+
+// تشغيل الفحص فوراً
+checkAuth();
+```
+
+═══════════════════════════════════════════════════════════════
+🔧 الخطوة 5: مسح البيانات القديمة
+═══════════════════════════════════════════════════════════════
+
+إذا كنت قد جربت عدة مرات، قد تكون هناك بيانات قديمة متضاربة:
+
+1. افتح Console (F12)
+2. انسخ والصق هذا الكود:
+
+```javascript
+// مسح جميع البيانات القديمة
+localStorage.removeItem('userSession');
+localStorage.removeItem('session');
+localStorage.removeItem('auth');
+localStorage.removeItem('currentUser');
+localStorage.removeItem('loginData');
+
+// الاحتفاظ فقط بالمفتاح الصحيح
+const session = localStorage.getItem('auditSession');
+console.log('Current session:', session ? JSON.parse(session) : 'None');
+
+// مسح كل شيء وإعادة التحميل (الحل النهائي)
+// localStorage.clear();
+// location.reload();
+```
+
+═══════════════════════════════════════════════════════════════
+🔧 الخطوة 6: استخدام الملف الجاهز
+═══════════════════════════════════════════════════════════════
+
+استخدم الملف الجديد: login-fix.js
+
+1. أضف هذا السطر في login.html قبل إغلاق </body>:
+   <script src="login-fix.js"></script>
+
+2. أضف هذا السطر في dashboard.html قبل إغلاق </body>:
+   <script src="login-fix.js"></script>
+
+3. تأكد من أن الملفات الثلاثة في نفس المجلد:
+   - index.html (أو login.html)
+   - dashboard.html
+   - login-fix.js
+
+═══════════════════════════════════════════════════════════════
+📋 قائمة التحقق النهائية (Checklist)
+═══════════════════════════════════════════════════════════════
+
+قبل اختبار تسجيل الدخول:
+
+☐ جميع الملفات في نفس المجلد
+☐ مفتاح التخزين موحد ('auditSession')
+☐ لا يوجد مسافات في اسم المستخدم
+☐ JavaScript مفعل في المتصفح
+☐ لا يوجد AdBlocker يمنع LocalStorage
+☐ المتصفح محدث (Chrome/Firefox/Edge)
+
+═══════════════════════════════════════════════════════════════
+🎯 إذا استمرت المشكلة
+═══════════════════════════════════════════════════════════════
+
+أرسل لي المعلومات التالية:
+1. لقطة شاشة من Console (F12) بعد محاولة الدخول
+2. محتوى LocalStorage (F12 → Application → Local Storage)
+3. نسخة من كود login.html الخاص بك
+
+وسأقوم بحل المشكلة فوراً بإذن الله.
+
+═══════════════════════════════════════════════════════════════
